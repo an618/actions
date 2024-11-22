@@ -1,0 +1,28 @@
+name: First action file
+
+on: 
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Greeting
+        run: echo "hello! Ankit sahu"
+        shell: bash
+        
+  bye:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Parting ways
+        run: echo "! bye Ankit sahu"
+        shell: bash
+        
+   
+      
