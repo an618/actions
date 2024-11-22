@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Parting ways
-        run: echo "! bye Ankit sahu"
+        run: echo " Bye! Ankit sahu"
         shell: bash
         
    
