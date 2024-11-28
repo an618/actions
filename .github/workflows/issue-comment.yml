@@ -19,7 +19,7 @@ jobs:
         shell: bash
 
       - name: Debug issue number
-        run: echo "Issue number: ${{ github.event.issue.number }}"
+        run: echo "Issue number: ${{ github.event.issue.number }}
 
       - name: Create comment
         uses: peter-evans/create-or-update-comment@v4
