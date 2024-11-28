@@ -1,4 +1,4 @@
 FROM nginx:latest
-WORKDIR: /app
+WORKDIR /app
 EXPOSE 80
 CMD ["nginx","-g","daemon off;"]
