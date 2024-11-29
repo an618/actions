@@ -1,0 +1,123 @@
+name: CI/CD Pipeline with DockerHub
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  REPO_INITIAL: "docker.io/sanu1915"  # Replace 'username' with your DockerHub username
+  DOCKER_REPO: "${{ env.REPO_INITIAL }}/oms-frontend"
+  RECIPIENT_EMAIL: "reply2sahu19ankit@gmail.com"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository
+      - name: Checkout Source Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      # Set Environment Variables
+      - name: Set Environment Variables
+        run: |
+          echo "GIT_COMMIT_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "BRANCH_NAME=${{ github.ref_name }}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ env.BRANCH_NAME }}-${{ env.GIT_COMMIT_SHORT }}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=${{ env.DOCKER_REPO }}:${{ env.IMAGE_TAG }}" >> $GITHUB_ENV
+          echo "REPORT_NAME=trivy_report_$(date +%s).html" >> $GITHUB_ENV
+
+      # Check Commit Message
+      - name: Validate Commit Message
+        run: |
+          GIT_COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Commit message: $GIT_COMMIT_MSG"
+          if [[ "$GIT_COMMIT_MSG" != *"build ready"* ]]; then
+            echo "Commit message does not contain 'build ready'. Aborting build."
+            exit 1
+          fi
+
+      # Build Docker Image
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }} . --no-cache
+
+      # Scan Docker Image with Trivy
+      - name: Scan Docker Image
+        run: |
+          TRIVY_FORMAT='--format template --template "@/usr/local/share/trivy/templates/html.tpl"'
+          trivy image $TRIVY_FORMAT -o ${{ env.REPORT_NAME }} ${{ env.IMAGE_NAME }}
+          if [[ ! -f "${{ env.REPORT_NAME }}" ]]; then
+            echo "Trivy report not found. Aborting."
+            exit 1
+          fi
+
+      # Email Trivy Report
+      - name: Send Vulnerability Report via Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: Vulnerabilities Report in Docker Image
+          body: |
+            Dear Team,
+
+            Please find the attached Trivy report for more details.
+
+            Regards,
+            GitHub Actions
+          to: ${{ env.RECIPIENT_EMAIL }}
+          attachments: ${{ env.REPORT_NAME }}
+
+      # Push Docker Image to DockerHub
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Push Docker Image
+        run: |
+          docker push ${{ env.IMAGE_NAME }}
+          docker rmi ${{ env.IMAGE_NAME }}
+          dangling_images=$(docker images -f "dangling=true" -q)
+          if [[ -n "$dangling_images" ]]; then
+            docker rmi -f $dangling_images
+          else
+            echo "No dangling images to remove."
+          fi
+
+      # Clean Workspace
+      - name: Clean Workspace
+        run: |
+          rm -rf *
+          echo "Workspace cleaned."
+
+  notify:
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Pipeline Status via Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "${{ github.workflow }} - Build #${{ github.run_number }} - ${{ job.status }}"
+          body: |
+            <html>
+              <body>
+                <h2>${{ github.workflow }} - Build #${{ github.run_number }}</h2>
+                <p>Status: ${{ job.status }}</p>
+                <p>Check the <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">console output</a>.</p>
+              </body>
+            </html>
+          to: ${{ env.RECIPIENT_EMAIL }}
+          content_type: text/html
+
