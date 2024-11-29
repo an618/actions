@@ -6,7 +6,7 @@ on:
       - master
 
 env:
-  REPO_INITIAL: "docker.io/sanu1915"  # Replace 'username' with your DockerHub username
+  REPO_INITIAL: "sanu1915"  # Replace 'username' with your DockerHub username
   DOCKER_REPO: "${{ env.REPO_INITIAL }}/oms-frontend"
   RECIPIENT_EMAIL: "reply2sahu19ankit@gmail.com"
 
